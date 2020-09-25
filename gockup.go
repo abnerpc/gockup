@@ -62,6 +62,26 @@ func readConfig() (*Config, error) {
 	return &config, nil
 }
 
+// writeConfig writes current Config data to the default path
+func writeConfig(config *Config) error {
+	file, _ := json.Marshal(config)
+	configFilePath := getAppConfigPath() + "/config.json"
+	return ioutil.WriteFile(configFilePath, file, 0644)
+}
+
+// setTarget set the target_path as backup target
+func (c *Config) setTarget(target_path string) error {
+	c.Target = target_path
+	return writeConfig(c)
+}
+
+// addSource adds the source_path as one more source to backup
+func (c *Config) addSource(source_path string) error {
+	c.Sources = append(c.Sources, source_path)
+	return writeConfig(c)
+}
+
+// isValid verifies if the current Config is valid
 func (c *Config) isValid() error {
 	if len(c.Target) == 0 {
 		return errors.New("Target not found")
@@ -75,6 +95,12 @@ func (c *Config) isValid() error {
 }
 
 func main() {
+
+	config, err := readConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	setTargetCmd := flag.NewFlagSet("set-target", flag.ExitOnError)
 	targetPath := setTargetCmd.String("path", ".", "Path")
 	addSourceCmd := flag.NewFlagSet("add-source", flag.ExitOnError)
@@ -85,23 +111,18 @@ func main() {
 	case "set-target":
 		setTargetCmd.Parse(os.Args[2:])
 		path, _ := filepath.Abs(*targetPath)
-		fmt.Print(path)
+		config.setTarget(path)
 	case "add-source":
 		addSourceCmd.Parse(os.Args[2:])
 		path, _ := filepath.Abs(*sourcePath)
-		fmt.Print(path)
+		config.addSource(path)
 	case "run":
-		config, err := readConfig()
-		if err != nil {
-			log.Fatal(err)
-		}
-
 		if err := config.isValid(); err != nil {
 			fmt.Printf("Invalid config: %s\n", err)
 			return
 		}
 
-		fmt.Print("Valid\n")
+		fmt.Print("Runs backup process\n")
 	}
 
 }
